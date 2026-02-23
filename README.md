@@ -112,7 +112,7 @@ class Blot {
 Implementation for a Blot representing a link, which is a parent, inline scoped, and formattable.
 
 ```typescript
-import { InlineBlot, register } from 'parchment';
+import { InlineBlot } from 'parchment';
 
 class LinkBlot extends InlineBlot {
   static blotName = 'link';
@@ -144,8 +144,6 @@ class LinkBlot extends InlineBlot {
     return formats;
   }
 }
-
-register(LinkBlot);
 ```
 
 Quill also provides many great example implementations in its [source code](https://github.com/quilljs/quill/tree/develop/packages/quill/src/formats).
@@ -196,10 +194,9 @@ The implementation for Attributors is surprisingly simple, and its [source code]
 Uses a plain attribute to represent formats.
 
 ```js
-import { Attributor, register } from 'parchment';
+import { Attributor } from 'parchment';
 
 let Width = new Attributor('width', 'width');
-register(Width);
 
 let imageNode = document.createElement('img');
 
@@ -215,10 +212,9 @@ console.log(imageNode.outerHTML); // Will print <img>
 Uses a class name pattern to represent formats.
 
 ```js
-import { ClassAttributor, register } from 'parchment';
+import { ClassAttributor } from 'parchment';
 
 let Align = new ClassAttributor('align', 'blot-align');
-register(Align);
 
 let node = document.createElement('div');
 Align.add(node, 'right');
@@ -230,12 +226,11 @@ console.log(node.outerHTML); // Will print <div class="blot-align-right"></div>
 Uses inline styles to represent formats.
 
 ```js
-import { StyleAttributor, register } from 'parchment';
+import { StyleAttributor } from 'parchment';
 
 let Align = new StyleAttributor('align', 'text-align', {
   whitelist: ['right', 'center', 'justify'], // Having no value implies left align
 });
-register(Align);
 
 let node = document.createElement('div');
 Align.add(node, 'right');
@@ -244,28 +239,69 @@ console.log(node.outerHTML); // Will print <div style="text-align: right;"></div
 
 ## Registry
 
-All methods are accessible from Parchment ex. `Parchment.create('bold')`.
+Registry has the following interface:
 
 ```typescript
-// Creates a blot given a name or DOM node.
-// When given just a scope, creates blot the same name as scope
-create(domNode: Node, value?: any): Blot;
-create(blotName: string, value?: any): Blot;
-create(scope: Scope): Blot;
+class Registry {
+  // Creates a blot given a name or DOM node.
+  // When given just a scope, creates blot the same name as scope
+  create(scroll: Root, domNode: Node, value?: any): Blot;
+  create(scroll: Root, blotName: string, value?: any): Blot;
+  create(scroll: Root, scope: Scope): Blot;
 
-// Given DOM node, find corresponding Blot.
-// Bubbling is useful when searching for a Embed Blot with its corresponding
-// DOM node's descendant nodes.
-find(domNode: Node, bubble: boolean = false): Blot;
+  // Given DOM node, find corresponding Blot.
+  // Bubbling is useful when searching for a Embed Blot with its corresponding
+  // DOM node's descendant nodes.
+  find(domNode: Node, bubble: boolean = false): Blot;
 
-// Search for a Blot or Attributor
-// When given just a scope, finds blot with same name as scope
-query(tagName: string, scope: Scope = Scope.ANY): BlotClass;
-query(blotName: string, scope: Scope = Scope.ANY): BlotClass;
-query(domNode: Node, scope: Scope = Scope.ANY): BlotClass;
-query(scope: Scope): BlotClass;
-query(attributorName: string, scope: Scope = Scope.ANY): Attributor;
+  // Search for a Blot or Attributor
+  // When given just a scope, finds blot with same name as scope
+  query(tagName: string, scope: Scope = Scope.ANY): BlotClass;
+  query(blotName: string, scope: Scope = Scope.ANY): BlotClass;
+  query(domNode: Node, scope: Scope = Scope.ANY): BlotClass;
+  query(scope: Scope): BlotClass;
+  query(attributorName: string, scope: Scope = Scope.ANY): Attributor;
 
-// Register Blot class definition or Attributor instance
-register(BlotClass | Attributor);
+  // Register Blot class definition or Attributor instance
+  register(BlotClass | Attributor);
+}
+```
+
+Build your own Registry and lookup blots with it.
+
+```typescript
+import { BlockBlot, ScrollBlot, Registry } from 'parchment';
+import { Align, Width } from './my-attributors';
+import { LinkBlot } from './my-blots';
+
+// Creates your own registry and register everything.
+const myRegistry = new Registry()
+myRegistry.register(
+
+  // Predefined blots.
+  BlockBlot,
+
+  // Custom attributors.
+  Align,
+  Width,
+
+  // Custom blots.
+  LinkBlot,
+
+  // and more ...
+)
+
+const root = new ScrollBlot(myRegistry, document.querySelector('#my-editor'))
+
+const block = myRegistry.create(root, 'block')
+const link = myRegistry.create(root, 'link', 'https://quilljs.com/')
+
+// ...
+
+document.addEventListener('click', event => {
+  const blot = myRegistry.find(event.target, true)
+  if (blot === myRegistry.query('link')) {
+    // Opens the link.
+  }
+})
 ```
